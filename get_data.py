@@ -1,6 +1,7 @@
 from pybaseball import statcast
 import numpy as np
 import pandas as pd
+from pitch_clustering import pitch_clustering
 
 def get_data(get_data_func, train_dates_list):
     '''
@@ -30,7 +31,7 @@ def get_hit_zone(start, end):
             and the "hit zone"
     '''
     # get the data from statcast
-    data = statcast(start_dt=start, end_dt=end)
+    data = statcast(start_dt=start, end_dt=end, verbose=0)
 
     # just keep the "events" (i.e., the end result of an at-bat)
     data = data[~pd.isnull(data['events'])]
@@ -90,14 +91,54 @@ def get_pitch_data(start, end):
     output: a dataframe with pitcher's name and ID as well as information on every
             pitch they've thrown
     '''
-    data = statcast(start_dt=start, end_dt=end)
-
-    print(data.columns)
+    data = statcast(start_dt=start, end_dt=end, verbose=0)
 
     pitch_cols = ['pitcher', 'player_name', 'release_speed', 'release_spin_rate', 'release_extension',
                   'pfx_x', 'pfx_z', 'plate_x', 'plate_z',
                   'vx0', 'vy0', 'vz0', 'ax', 'ay', 'az']
-
     data = data[pitch_cols]
+
+    # drop rows with missing values
+    data.dropna(inplace=True)
+
+    # perform PCA and K-Means clustering
+    print("Performing PCA and K-Means Clustering...")
+    data = pitch_clustering(data)
+
+    return data
+
+
+def get_situation_data(start, end):
+
+    data = statcast(start_dt=start, end_dt=end, verbose=0)
+
+    # just keep the "events" (i.e., the end result of an at-bat)
+    data = data[~pd.isnull(data['events'])]
+
+    # remove events that don't involve the ball being put into play in a meaningful way
+    # (i.e., no strikeouts, walks, sacrifice bunts, caught stealing, hit by pitch, etc.)
+    inplay_event_list = ['field_out', 'sac_fly', 'force_out', 'field_error', 'double', 'home_run',
+                         'grounded_into_double_play', 'fielders_choice', 'fielders_choice_out', 'triple',
+                         'double_play']
+    data = data[data['events'].isin(inplay_event_list)]
+
+    # trim down the features
+    cols_to_keep = ['game_pk', 'index', 'batter', 'pitcher', 'stand', 'p_throws', 'balls', 'strikes', 'outs_when_up',
+                    'inning', 'on_1b', 'on_2b', 'on_3b', 'bat_score', 'fld_score']
+    data = data[cols_to_keep]
+
+    # make sure index columns are int's
+    for col in ['game_pk', 'index', 'batter', 'pitcher']:
+        data[col] = data[col].astype(int)
+
+    data['bat_right'] = data['stand'].apply(lambda x: x == 'R')
+    data['pitch_right'] = data['p_throws'].apply(lambda x: x == 'R')
+    data.drop(['stand', 'p_throws'], axis=1, inplace=True)
+
+    for col in ['on_1b', 'on_2b', 'on_3b']:
+        data[col] = data[col].apply(lambda x: x == x)
+
+    data['score_diff'] = data['bat_score'] - data['fld_score']
+    data.drop(['bat_score', 'fld_score'], axis=1, inplace=True)
 
     return data

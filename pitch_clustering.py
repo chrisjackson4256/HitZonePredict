@@ -12,6 +12,10 @@ def pitch_clustering(df):
     output: dataframe with k columns (where k is determined through k-means clustering
             and the "Gap Statistic" to determine the optimal number of clusters)
     '''
+    # extract the pitcher ID and name
+    pitcherID = df[['pitcher', 'player_name']]
+    pitch_data = df.drop(['pitcher', 'player_name'], axis=1)
+
     # rescale the training data
     scaler = MinMaxScaler()
     df_scaled = pd.DataFrame(scaler.fit_transform(df))
@@ -90,4 +94,38 @@ def pitch_clustering(df):
         return (gaps.argmax() + 1, resultsdf)  # Plus 1 because index of 0 means 1 cluster is optimal, index 2 = 3 clusters are optimal
 
     k, _ = optimalK(df_pca)
-    print(f"The optimal number of clusters is: {k}")
+    print(f"The optimal number of K-Means clusters is: {k}")
+
+    # train the kmeans model with the optimal number of clusters
+    kmeans = KMeans(n_clusters=k, n_jobs=-1)
+    kmeans.fit(df_pca)
+
+    # build a dataframe to contain the pitch classifications
+    labels = pd.DataFrame(kmeans.labels_)
+
+    # next, turn the labels into counts (or percentages) of pitch type for each pitcher
+
+    # one-hot-encode the label df
+    ohe = OneHotEncoder()
+    labels_ohe = pd.DataFrame(ohe.fit_transform(labels).toarray())
+
+    # give the new columns names
+    pitch_labels = ['pitch_type_'+str(i) for i in range(len(labels_ohe.columns.tolist()))]
+    labels_ohe.columns = pitch_labels
+
+    # merge the pitch type data with the pitcher's ID and name
+    pitch_data = pd.merge(pitcherID, labels_ohe, left_index=True, right_index=True)
+
+    # groupby on the pitcher ID/name and sum the rows
+    pitch_data = pitch_data.groupby(['pitcher', 'player_name']).sum()
+    pitch_data.reset_index(inplace=True, drop=False)
+
+    # finally, turn the pitch counts into percentages
+    pitch_data_pct = pd.DataFrame()
+    for i in range(len(pitch_data)):
+        temp_df = pd.DataFrame(pitch_data.iloc[i]).T
+        pitch_sum = sum(temp_df.iloc[0,2:])
+        temp_df.iloc[0,2:] = temp_df.iloc[0,2:] / pitch_sum
+        pitch_data_pct = pitch_data_pct.append(temp_df)
+
+    return pitch_data_pct
