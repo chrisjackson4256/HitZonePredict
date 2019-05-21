@@ -1,4 +1,4 @@
-from pybaseball import statcast
+from pybaseball import statcast, pitching_stats
 import numpy as np
 import pandas as pd
 from pitch_clustering import pitch_clustering

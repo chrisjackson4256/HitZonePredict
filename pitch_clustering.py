@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from pybaseball import pitching_stats
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
@@ -121,12 +122,30 @@ def pitch_clustering(df):
     pitch_data = pitch_data.groupby(['pitcher', 'player_name']).sum()
     pitch_data.reset_index(inplace=True, drop=False)
 
-    # finally, turn the pitch counts into percentages
+    # turn the pitch counts into percentages
     pitch_data_pct = pd.DataFrame()
     for i in range(len(pitch_data)):
         temp_df = pd.DataFrame(pitch_data.iloc[i]).T
         pitch_sum = sum(temp_df.iloc[0,2:])
         temp_df.iloc[0,2:] = temp_df.iloc[0,2:] / pitch_sum
         pitch_data_pct = pitch_data_pct.append(temp_df)
+
+    # get the pitcher's data on types of balls in play
+    p_stats = pitching_stats(2015)
+
+    # select the types of ball in play
+    p_stats = p_stats[['Name', 'LD%', 'GB%', 'GB/FB', 'IFFB%']]
+
+    # use the GB/FB ratio to compute the OF flyball pct
+    p_stats['OFFB%'] = (p_stats['GB%'] / p_stats['GB/FB']) - p_stats['IFFB%']
+
+    # drop the GB/FB ratio
+    p_stats.drop('GB/FB', axis=1, inplace=True)
+
+    # rename columns
+    p_stats.columns = ['player_name', 'pitcher_LD%', 'pitcher_GB%', 'pitcher_IFFB%', 'pitcher_OFFB%']
+
+    # join pitch_data and p_stats on player_name
+    pitch_data_pct = pd.merge(pitch_data_pct, p_stats, on='player_name')
 
     return pitch_data_pct
