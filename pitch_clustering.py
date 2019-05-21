@@ -15,6 +15,7 @@ def pitch_clustering(df):
     # extract the pitcher ID and name
     pitcherID = df[['pitcher', 'player_name']]
     pitch_data = df.drop(['pitcher', 'player_name'], axis=1)
+    df.drop(['pitcher', 'player_name'], axis=1, inplace=True)
 
     # rescale the training data
     scaler = MinMaxScaler()
