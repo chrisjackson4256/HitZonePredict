@@ -95,7 +95,15 @@ def pitch_clustering(df):
 
         return (gaps.argmax() + 1, resultsdf)  # Plus 1 because index of 0 means 1 cluster is optimal, index 2 = 3 clusters are optimal
 
-    k, _ = optimalK(df_pca)
+    # sample the data (because of memory limitations)
+    n_limit = 500000
+    if len(df_pca) > n_limit:
+        print(f"Size of dataframe exceeds row limit for clustering.  Sampling down to {n_limit} rows.")
+        df_pca_sampled = df_pca.sample(n=n_limit, random_state=4256)
+        k, _ = optimalK(df_pca_sampled)
+    else:
+        k, _ = optimalK(df_pca)
+        
     print(f"The optimal number of K-Means clusters is: {k}")
 
     # train the kmeans model with the optimal number of clusters

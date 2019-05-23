@@ -31,7 +31,7 @@ def get_hit_zone(start, end):
             and the "hit zone"
     '''
     # get the data from statcast
-    data = statcast(start_dt=start, end_dt=end, verbose=0)
+    data = statcast(start_dt=start, end_dt=end)
 
     # just keep the "events" (i.e., the end result of an at-bat)
     data = data[~pd.isnull(data['events'])]
@@ -91,7 +91,7 @@ def get_pitch_data(start, end):
     output: a dataframe with pitcher's name and ID as well as information on every
             pitch they've thrown
     '''
-    data = statcast(start_dt=start, end_dt=end, verbose=0)
+    data = statcast(start_dt=start, end_dt=end)
 
     pitch_cols = ['pitcher', 'player_name', 'release_speed', 'release_spin_rate', 'release_extension',
                   'pfx_x', 'pfx_z', 'plate_x', 'plate_z',
@@ -101,16 +101,12 @@ def get_pitch_data(start, end):
     # drop rows with missing values
     data.dropna(inplace=True)
 
-    # perform PCA and K-Means clustering
-    print("Performing PCA and K-Means Clustering...")
-    data = pitch_clustering(data)
-
     return data
 
 
 def get_situation_data(start, end):
 
-    data = statcast(start_dt=start, end_dt=end, verbose=0)
+    data = statcast(start_dt=start, end_dt=end)
 
     # just keep the "events" (i.e., the end result of an at-bat)
     data = data[~pd.isnull(data['events'])]
